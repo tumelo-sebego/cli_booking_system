@@ -104,7 +104,7 @@ async function registerStudent() {
     
     try {
         const studentNumber = generateStudentId(surname, students);
-        students.set(studentNumber, { surname, studentNumber });
+        students.set(studentNumber, { surname, studentNumber, active: false });
         await saveData(students, bookings);
         
         console.log(color(`\n✅ Registration Successful!`, COLORS.green));
@@ -120,7 +120,7 @@ async function loginStudent() {
     const promptText = color('Enter your Student Number (e.g., sib1054): ', COLORS.yellow);
     const studentNumber = (await rl.question(promptText)).trim().toLowerCase();
     
-    const { students } = await loadData();
+    const { students, bookings } = await loadData();
     
     if (!students.has(studentNumber)) {
         console.log(color('❌ Student Number not found. Please register first.', COLORS.red));
@@ -128,6 +128,13 @@ async function loginStudent() {
     }
     
     const student = students.get(studentNumber);
+    if (student.active) {
+        console.log(color('❌ This student account is already logged in.', COLORS.red));
+        return mainMenu();
+    }
+    student.active = true;
+    await saveData(students, bookings);
+    
     console.log(color(`\nWelcome back, ${student.surname}!`, COLORS.green));
     await studentDashboard(student);
 }
@@ -154,6 +161,9 @@ async function studentDashboard(student) {
             await cancelBooking(student);
             break;
         case '4':
+            const { students, bookings } = await loadData();
+            students.get(student.studentNumber).active = false;
+            await saveData(students, bookings);
             console.log(color('Logged out successfully.', COLORS.green));
             await mainMenu();
             break;
