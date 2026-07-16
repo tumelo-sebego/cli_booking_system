@@ -1,0 +1,21 @@
+{
+  "name": "cli_booking_system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tumelo-sebego/cli_booking_system.git"
+  },
+  "keywords": [],
+  "author": "tuti",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/tumelo-sebego/cli_booking_system/issues"
+  },
+  "homepage": "https://github.com/tumelo-sebego/cli_booking_system#readme"
+}
