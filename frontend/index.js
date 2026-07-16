@@ -2,7 +2,7 @@ import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import { promises as fs } from 'fs';
 import path from 'path';
-import * as historyManager from './historyManager.js';
+import * as historyManager from '../backend/historyManager.js';
 
 const rl = readline.createInterface({ input, output });
 const DB_FILE = path.join(process.cwd(), 'db.json');
@@ -22,6 +22,7 @@ const COLORS = {
 
 // Helper function to colorize text
 const color = (text, colorCode) => `${colorCode}${text}${COLORS.reset}`;
+const DB_FILE = path.join(process.cwd(), 'backend', 'db.json');
 
 // --- Navigation Helper ---
 let currentUser = null; // Track current user for navigation
@@ -177,7 +178,7 @@ async function registerStudent() {
     await mainMenu();
 }
 
-async function loginStudent() {
+inasync function loginStudent() {
     console.log(color('\n--- Student Login ---', COLORS.cyan));
     const promptText = color('Enter your Student Number (e.g., sib1054): ', COLORS.yellow);
     const input = await rl.question(promptText);

@@ -26,6 +26,23 @@
             "ndl9253"
           ],
           "timestamp": "2026-07-16T12:38:00.992Z"
+        },
+        {
+          "name": "mainMenu",
+          "args": [],
+          "timestamp": "2026-07-16T12:54:08.847Z"
+        },
+        {
+          "name": "loginStudent",
+          "args": [
+            "seb4434"
+          ],
+          "timestamp": "2026-07-16T12:54:29.180Z"
+        },
+        {
+          "name": "mainMenu",
+          "args": [],
+          "timestamp": "2026-07-16T12:56:58.730Z"
         }
       ]
     }
@@ -186,6 +203,147 @@
           "timestamp": "2026-07-16T12:41:21.094Z"
         }
       ]
+    }
+  ],
+  "seb4434": [
+    {
+      "startTime": "2026-07-16T12:54:29.182Z",
+      "steps": [
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:54:29.183Z"
+        },
+        {
+          "name": "bookSessionChooseDay",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:54:50.465Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:54:50.468Z"
+        },
+        {
+          "name": "viewBookings",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:54:57.690Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:54:57.693Z"
+        },
+        {
+          "name": "cancelBooking",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:55:00.760Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:55:06.217Z"
+        },
+        {
+          "name": "bookSessionChooseDay",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:55:14.536Z"
+        },
+        {
+          "name": "bookSessionChoosePC",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            },
+            "Wednesday"
+          ],
+          "timestamp": "2026-07-16T12:55:19.295Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:55:24.427Z"
+        },
+        {
+          "name": "viewBookings",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:55:29.048Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "sebego",
+              "studentNumber": "seb4434",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:55:29.051Z"
+        }
+      ],
+      "endTime": "2026-07-16T12:56:58.728Z"
     }
   ]
 }
