@@ -41,16 +41,29 @@ export async function endSession(userId) {
 export async function logStep(userId, stepName, args) {
     const data = await getHistoryData();
     
-    if (userId !== 'anonymous') {
-        const session = data[userId]?.find(s => !s.endTime);
-        if (session) {
-            session.steps.push({
-                name: stepName,
-                args,
-                timestamp: new Date().toISOString()
-            });
-            await saveHistoryData(data);
-        }
+    // Ensure anonymous user has a session
+    if (userId === 'anonymous') {
+        if (!data['anonymous']) data['anonymous'] = [{ startTime: new Date().toISOString(), steps: [] }];
+    }
+    
+    const session = data[userId]?.find(s => !s.endTime);
+    if (session) {
+        session.steps.push({
+            name: stepName,
+            args,
+            timestamp: new Date().toISOString()
+        });
+        await saveHistoryData(data);
+    }
+}
+
+export async function updateLastStep(userId, newArgs) {
+    const data = await getHistoryData();
+    const session = data[userId]?.find(s => !s.endTime);
+    if (session && session.steps.length > 0) {
+        const lastStep = session.steps[session.steps.length - 1];
+        lastStep.args = [...(lastStep.args || []), ...newArgs];
+        await saveHistoryData(data);
     }
 }
 

@@ -143,10 +143,11 @@ async function mainMenu() {
 }
 
 async function registerStudent() {
-    await pushHistory(registerStudent, []);
     console.log(color('\n--- Student Registration ---', COLORS.cyan));
     const promptText = color('Enter your surname: ', COLORS.yellow);
     const surname = await rl.question(promptText);
+    
+    await pushHistory(registerStudent, [surname]);
     
     if (await handleNav(surname, mainMenu)) return;
     
@@ -171,10 +172,11 @@ async function registerStudent() {
 }
 
 async function loginStudent() {
-    await pushHistory(loginStudent, []);
     console.log(color('\n--- Student Login ---', COLORS.cyan));
     const promptText = color('Enter your Student Number (e.g., sib1054): ', COLORS.yellow);
     const input = await rl.question(promptText);
+    
+    await pushHistory(loginStudent, [input]);
     
     if (await handleNav(input, mainMenu)) return;
     const studentNumber = input.trim().toLowerCase();
