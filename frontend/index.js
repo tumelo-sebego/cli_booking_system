@@ -1,14 +1,13 @@
+import axios from 'axios';
 import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
-import { promises as fs } from 'fs';
-import path from 'path';
-import * as historyManager from '../backend/historyManager.js';
+import * as historyManager from './historyManager.js';
 
 const rl = readline.createInterface({ input, output });
-const DB_FILE = path.join(process.cwd(), 'db.json');
+const API_BASE = 'http://localhost:3000/api';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const TOTAL_PCS = 50;
+// --- API Client ---
+const apiClient = axios.create({ baseURL: API_BASE });
 
 // --- ANSI Color Codes ---
 const COLORS = {
@@ -60,9 +59,9 @@ async function executeStep(name, args) {
         mainMenu,
         registerStudent,
         loginStudent,
-        studentDashboard: (student) => studentDashboard(student),
-        bookSessionChooseDay: (student) => bookSessionChooseDay(student),
-        bookSessionChoosePC: (student, day) => bookSessionChoosePC(student, day),
+        studentDashboard,
+        bookSessionChooseDay,
+        bookSessionChoosePC,
         viewBookings,
         cancelBooking
     };
@@ -71,44 +70,8 @@ async function executeStep(name, args) {
     }
 }
 
-// --- Database Helper Functions ---
-async function loadData() {
-    try {
-        const data = await fs.readFile(DB_FILE, 'utf8');
-        const parsed = JSON.parse(data);
-        return {
-            students: new Map(Object.entries(parsed.students || {})),
-            bookings: parsed.bookings || []
-        };
-    } catch (error) {
-        return { students: new Map(), bookings: [] };
-    }
-}
-
-async function saveData(studentsMap, bookingsArray) {
-    const dataToSave = {
-        students: Object.fromEntries(studentsMap),
-        bookings: bookingsArray
-    };
-    await fs.writeFile(DB_FILE, JSON.stringify(dataToSave, null, 2), 'utf8');
-}
-
 // --- Logic Helper Functions ---
-function generateStudentId(surname, studentsMap) {
-    const prefix = surname.slice(0, 3).toLowerCase().padEnd(3, 'x');
-    let uniqueId = '';
-    let attempts = 0;
-    
-    while (attempts < 1000) {
-        const randomDigits = Math.floor(1000 + Math.random() * 9000).toString();
-        uniqueId = `${prefix}${randomDigits}`;
-        if (!studentsMap.has(uniqueId)) {
-            return uniqueId;
-        }
-        attempts++;
-    }
-    throw new Error("Could not generate a unique Student ID.");
-}
+// (Logic moved to backend)
 
 // --- CLI Views & Navigation ---
 async function mainMenu() {
@@ -158,22 +121,12 @@ async function registerStudent() {
         return mainMenu();
     }
     
-    const { students, bookings } = await loadData();
-    
     try {
-        const studentNumber = generateStudentId(surname, students);
-        students.set(studentNumber, { 
-            surname, 
-            studentNumber, 
-            active: false, 
-            registeredAt: new Date().toISOString() 
-        });
-        await saveData(students, bookings);
-        
+        const { data } = await apiClient.post('/register', { surname });
         console.log(color(`\n✅ Registration Successful!`, COLORS.green));
-        console.log(`Your Unique Student Number is: ${color(studentNumber, COLORS.green + COLORS.bold)}`);
+        console.log(`Your Unique Student Number is: ${color(data.studentNumber, COLORS.green + COLORS.bold)}`);
     } catch (error) {
-        console.log(color(`❌ Error: ${error.message}`, COLORS.red));
+        console.log(color(`❌ Error: ${error.response?.data?.error || error.message}`, COLORS.red));
     }
     await mainMenu();
 }
@@ -188,25 +141,16 @@ inasync function loginStudent() {
     if (await handleNav(input, mainMenu)) return;
     const studentNumber = input.trim().toLowerCase();
     
-    const { students, bookings } = await loadData();
-    
-    if (!students.has(studentNumber)) {
-        console.log(color('❌ Student Number not found. Please register first.', COLORS.red));
-        return mainMenu();
+    try {
+        const { data } = await apiClient.post('/login', { studentNumber });
+        await historyManager.startSession(data.studentNumber);
+        currentUser = data; // Set current user
+        console.log(color(`\nWelcome back, ${data.surname}!`, COLORS.green));
+        await studentDashboard(data);
+    } catch (error) {
+        console.log(color(`❌ ${error.response?.data?.error || error.message}`, COLORS.red));
+        await mainMenu();
     }
-    
-    const student = students.get(studentNumber);
-    if (student.active) {
-        console.log(color('❌ This student account is already logged in.', COLORS.red));
-        return mainMenu();
-    }
-    student.active = true;
-    await saveData(students, bookings);
-    
-    await historyManager.startSession(student.studentNumber);
-    currentUser = student; // Set current user
-    console.log(color(`\nWelcome back, ${student.surname}!`, COLORS.green));
-    await studentDashboard(student);
 }
 
 async function studentDashboard(student) {
@@ -235,9 +179,6 @@ async function studentDashboard(student) {
             await cancelBooking(student);
             break;
         case '4':
-            const { students, bookings } = await loadData();
-            students.get(student.studentNumber).active = false;
-            await saveData(students, bookings);
             await historyManager.endSession(student.studentNumber);
             currentUser = null; // Clear current user
             console.log(color('Logged out successfully.', COLORS.green));
@@ -257,152 +198,166 @@ async function bookSessionChooseDay(student) {
     await pushHistory(bookSessionChooseDay, [student]);
     console.log(color('\n--- Book a PC Session (8 Hours) ---', COLORS.cyan));
     
-    const { students, bookings } = await loadData();
-    const studentBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
-    
-    if (studentBookings.length >= 3) {
-        console.log(color('❌ Booking Limit Reached! You can only book up to 3 sessions per week (Mon-Fri).', COLORS.red));
-        return studentDashboard(student);
+    try {
+        const { data } = await apiClient.get('/dashboard');
+        const { bookings, days } = data;
+        const studentBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
+        
+        if (studentBookings.length >= 3) {
+            console.log(color('❌ Booking Limit Reached! You can only book up to 3 sessions per week (Mon-Fri).', COLORS.red));
+            return studentDashboard(student);
+        }
+        
+        console.log(color('Select a day:', COLORS.cyan));
+        days.forEach((day, index) => {
+            const studentHasBooking = studentBookings.some(b => b.day === day);
+            const status = studentHasBooking ? color('[Already Booked by You]', COLORS.yellow) : '';
+            console.log(`${index + 1}. ${day} ${status}`);
+        });
+        
+        const dayPrompt = color('\nSelect Day (1-5): ', COLORS.yellow);
+        const dayInput = await rl.question(dayPrompt);
+        
+        if (await handleNav(dayInput, () => studentDashboard(student))) return;
+        const dayChoice = parseInt(dayInput, 10);
+        
+        if (isNaN(dayChoice) || dayChoice < 1 || dayChoice > 5) {
+            console.log(color('❌ Invalid day selection.', COLORS.red));
+            return bookSessionChooseDay(student);
+        }
+        
+        const selectedDay = days[dayChoice - 1];
+        
+        if (studentBookings.some(b => b.day === selectedDay)) {
+            console.log(color(`❌ You already have a booking on ${selectedDay}.`, COLORS.red));
+            return bookSessionChooseDay(student);
+        }
+        
+        await bookSessionChoosePC(student, selectedDay);
+    } catch (error) {
+        console.log(color(`❌ ${error.response?.data?.error || error.message}`, COLORS.red));
+        await studentDashboard(student);
     }
-    
-    console.log(color('Select a day:', COLORS.cyan));
-    DAYS.forEach((day, index) => {
-        const studentHasBooking = studentBookings.some(b => b.day === day);
-        const status = studentHasBooking ? color('[Already Booked by You]', COLORS.yellow) : '';
-        console.log(`${index + 1}. ${day} ${status}`);
-    });
-    
-    const dayPrompt = color('\nSelect Day (1-5): ', COLORS.yellow);
-    const dayInput = await rl.question(dayPrompt);
-    
-    if (await handleNav(dayInput, () => studentDashboard(student))) return;
-    const dayChoice = parseInt(dayInput, 10);
-    
-    if (isNaN(dayChoice) || dayChoice < 1 || dayChoice > 5) {
-        console.log(color('❌ Invalid day selection.', COLORS.red));
-        return bookSessionChooseDay(student);
-    }
-    
-    const selectedDay = DAYS[dayChoice - 1];
-    
-    if (studentBookings.some(b => b.day === selectedDay)) {
-        console.log(color(`❌ You already have a booking on ${selectedDay}.`, COLORS.red));
-        return bookSessionChooseDay(student);
-    }
-    
-    await bookSessionChoosePC(student, selectedDay);
 }
 
 async function bookSessionChoosePC(student, selectedDay) {
     await pushHistory(bookSessionChoosePC, [student, selectedDay]);
     
-    const { students, bookings } = await loadData();
-    const dayBookings = bookings.filter(b => b.day === selectedDay);
-    const occupiedPcs = dayBookings.map(b => b.pcNumber);
-    
-    console.log(color(`\n--- PC Availability for ${selectedDay} ---`, COLORS.cyan));
-    console.log(`Key: ${color('[#]', COLORS.green)} = Available | ${color('[X] (Red)', COLORS.red)} = Occupied\n`);
-    
-    let row = '';
-    for (let i = 1; i <= TOTAL_PCS; i++) {
-        let status;
-        if (occupiedPcs.includes(i)) {
-            status = color('[X]', COLORS.red);
-        } else {
-            status = color(`[${i}]`, COLORS.green);
+    try {
+        const { data } = await apiClient.get('/dashboard');
+        const { bookings, totalPcs } = data;
+        const dayBookings = bookings.filter(b => b.day === selectedDay);
+        const occupiedPcs = dayBookings.map(b => b.pcNumber);
+        
+        console.log(color(`\n--- PC Availability for ${selectedDay} ---`, COLORS.cyan));
+        console.log(`Key: ${color('[#]', COLORS.green)} = Available | ${color('[X] (Red)', COLORS.red)} = Occupied\n`);
+        
+        let row = '';
+        for (let i = 1; i <= totalPcs; i++) {
+            let status;
+            if (occupiedPcs.includes(i)) {
+                status = color('[X]', COLORS.red);
+            } else {
+                status = color(`[${i}]`, COLORS.green);
+            }
+            
+            row += status.padEnd(15);
+            if (i % 10 === 0) {
+                console.log(row);
+                row = '';
+            }
         }
         
-        row += status.padEnd(15);
-        if (i % 10 === 0) {
-            console.log(row);
-            row = '';
+        const pcPrompt = color('\nEnter PC number to book: ', COLORS.yellow);
+        const pcInput = await rl.question(pcPrompt);
+        
+        if (await handleNav(pcInput, () => bookSessionChooseDay(student))) return;
+        const pcChoice = parseInt(pcInput, 10);
+        
+        if (isNaN(pcChoice) || pcChoice < 1 || pcChoice > totalPcs) {
+            console.log(color('❌ Invalid PC selection.', COLORS.red));
+            return bookSessionChoosePC(student, selectedDay);
         }
+        
+        if (occupiedPcs.includes(pcChoice)) {
+            console.log(color(`❌ PC ${pcChoice} is already booked on ${selectedDay}. Please pick an open green slot.`, COLORS.red));
+            return bookSessionChoosePC(student, selectedDay);
+        }
+        
+        await apiClient.post('/book', { 
+            studentNumber: student.studentNumber,
+            pcNumber: pcChoice,
+            day: selectedDay
+        });
+        
+        console.log(color(`\n✅ Booking Confirmed! PC ${pcChoice} is reserved for you on ${selectedDay}.`, COLORS.green));
+        await studentDashboard(student);
+    } catch (error) {
+        console.log(color(`❌ ${error.response?.data?.error || error.message}`, COLORS.red));
+        await studentDashboard(student);
     }
-    
-    const pcPrompt = color('\nEnter PC number to book: ', COLORS.yellow);
-    const pcInput = await rl.question(pcPrompt);
-    
-    if (await handleNav(pcInput, () => bookSessionChooseDay(student))) return;
-    const pcChoice = parseInt(pcInput, 10);
-    
-    if (isNaN(pcChoice) || pcChoice < 1 || pcChoice > TOTAL_PCS) {
-        console.log(color('❌ Invalid PC selection.', COLORS.red));
-        return bookSessionChoosePC(student, selectedDay);
-    }
-    
-    if (occupiedPcs.includes(pcChoice)) {
-        console.log(color(`❌ PC ${pcChoice} is already booked on ${selectedDay} by another student. Please pick an open green slot.`, COLORS.red));
-        return bookSessionChoosePC(student, selectedDay);
-    }
-    
-    bookings.push({
-        studentNumber: student.studentNumber,
-        pcNumber: pcChoice,
-        day: selectedDay,
-        createdAt: new Date().toISOString()
-    });
-    
-    await saveData(students, bookings);
-    
-    console.log(color(`\n✅ Booking Confirmed! PC ${pcChoice} is reserved for you on ${selectedDay}.`, COLORS.green));
-    await studentDashboard(student);
 }
 
 async function viewBookings(student) {
     await pushHistory(viewBookings, [student]);
-    const { bookings } = await loadData();
-    const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
-    
-    console.log(color('\n--- Your Bookings ---', COLORS.cyan));
-    if (myBookings.length === 0) {
-        console.log(color('You have no active bookings.', COLORS.yellow));
-    } else {
-        myBookings.forEach((b, index) => {
-            console.log(`${index + 1}. ${color(b.day, COLORS.cyan)}: PC #${color(b.pcNumber, COLORS.green)} (8 Hours)`);
-        });
+    try {
+        const { data } = await apiClient.get('/dashboard');
+        const myBookings = data.bookings.filter(b => b.studentNumber === student.studentNumber);
+        
+        console.log(color('\n--- Your Bookings ---', COLORS.cyan));
+        if (myBookings.length === 0) {
+            console.log(color('You have no active bookings.', COLORS.yellow));
+        } else {
+            myBookings.forEach((b, index) => {
+                console.log(`${index + 1}. ${color(b.day, COLORS.cyan)}: PC #${color(b.pcNumber, COLORS.green)} (8 Hours)`);
+            });
+        }
+    } catch (error) {
+        console.log(color(`❌ ${error.response?.data?.error || error.message}`, COLORS.red));
     }
 }
 
 async function cancelBooking(student) {
     await pushHistory(cancelBooking, [student]);
-    const { students, bookings } = await loadData();
-    const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
-    
-    console.log(color('\n--- Cancel a Booking ---', COLORS.cyan));
-    
-    if (myBookings.length === 0) {
-        console.log(color('You have no active bookings to cancel.', COLORS.yellow));
-        return studentDashboard(student);
-    }
-    
-    myBookings.forEach((b, index) => {
-        console.log(`${index + 1}. ${b.day}: PC #${b.pcNumber}`);
-    });
-    
-    const cancelPrompt = color('\nSelect booking to cancel (or 0 to go back): ', COLORS.yellow);
-    const cancelInput = await rl.question(cancelPrompt);
-    
-    if (await handleNav(cancelInput, () => studentDashboard(student))) return;
-    const choice = parseInt(cancelInput, 10);
-    
-    if (choice === 0) return studentDashboard(student);
-    
-    if (isNaN(choice) || choice < 1 || choice > myBookings.length) {
-        console.log(color('❌ Invalid choice.', COLORS.red));
-        return studentDashboard(student);
-    }
-    
-    const targetBooking = myBookings[choice - 1];
-    const targetIndex = bookings.findIndex(b => 
-        b.studentNumber === targetBooking.studentNumber && 
-        b.day === targetBooking.day && 
-        b.pcNumber === targetBooking.pcNumber
-    );
-    
-    if (targetIndex !== -1) {
-        bookings.splice(targetIndex, 1);
-        await saveData(students, bookings);
+    try {
+        const { data } = await apiClient.get('/dashboard');
+        const myBookings = data.bookings.filter(b => b.studentNumber === student.studentNumber);
+        
+        console.log(color('\n--- Cancel a Booking ---', COLORS.cyan));
+        
+        if (myBookings.length === 0) {
+            console.log(color('You have no active bookings to cancel.', COLORS.yellow));
+            return studentDashboard(student);
+        }
+        
+        myBookings.forEach((b, index) => {
+            console.log(`${index + 1}. ${b.day}: PC #${b.pcNumber}`);
+        });
+        
+        const cancelPrompt = color('\nSelect booking to cancel (or 0 to go back): ', COLORS.yellow);
+        const cancelInput = await rl.question(cancelPrompt);
+        
+        if (await handleNav(cancelInput, () => studentDashboard(student))) return;
+        const choice = parseInt(cancelInput, 10);
+        
+        if (choice === 0) return studentDashboard(student);
+        
+        if (isNaN(choice) || choice < 1 || choice > myBookings.length) {
+            console.log(color('❌ Invalid choice.', COLORS.red));
+            return studentDashboard(student);
+        }
+        
+        const targetBooking = myBookings[choice - 1];
+        
+        await apiClient.post('/cancel', {
+            studentNumber: student.studentNumber,
+            day: targetBooking.day,
+            pcNumber: targetBooking.pcNumber
+        });
+        
         console.log(color(`\n✅ Successfully cancelled booking for PC #${targetBooking.pcNumber} on ${targetBooking.day}.`, COLORS.green));
+    } catch (error) {
+        console.log(color(`❌ ${error.response?.data?.error || error.message}`, COLORS.red));
     }
     
     await studentDashboard(student);
