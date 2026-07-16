@@ -161,7 +161,12 @@ async function registerStudent() {
     
     try {
         const studentNumber = generateStudentId(surname, students);
-        students.set(studentNumber, { surname, studentNumber, active: false });
+        students.set(studentNumber, { 
+            surname, 
+            studentNumber, 
+            active: false, 
+            registeredAt: new Date().toISOString() 
+        });
         await saveData(students, bookings);
         
         console.log(color(`\n✅ Registration Successful!`, COLORS.green));
