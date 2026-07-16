@@ -9,28 +9,36 @@ const DB_FILE = path.join(process.cwd(), 'db.json');
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TOTAL_PCS = 50;
 
-// --- Database Helper Functions ---
+// --- ANSI Color Codes ---
+const COLORS = {
+    reset: '\x1b[0m',
+    cyan: '\x1b[36m',
+    green: '\x1b[32m',
+    red: '\x1b[31m',
+    yellow: '\x1b[33m',
+    bold: '\x1b[1m'
+};
 
-// 1. Read state from the shared JSON file
+// Helper function to colorize text
+const color = (text, colorCode) => `${colorCode}${text}${COLORS.reset}`;
+
+// --- Database Helper Functions ---
 async function loadData() {
     try {
         const data = await fs.readFile(DB_FILE, 'utf8');
         const parsed = JSON.parse(data);
-        // Convert the parsed students object back to a Map
         return {
             students: new Map(Object.entries(parsed.students || {})),
             bookings: parsed.bookings || []
         };
     } catch (error) {
-        // If file doesn't exist, return empty initial state
         return { students: new Map(), bookings: [] };
     }
 }
 
-// 2. Save state back to the shared JSON file
 async function saveData(studentsMap, bookingsArray) {
     const dataToSave = {
-        students: Object.fromEntries(studentsMap), // Convert Map to plain object for JSON
+        students: Object.fromEntries(studentsMap),
         bookings: bookingsArray
     };
     await fs.writeFile(DB_FILE, JSON.stringify(dataToSave, null, 2), 'utf8');
@@ -55,14 +63,15 @@ function generateStudentId(surname, studentsMap) {
 
 // --- CLI Views & Navigation ---
 async function mainMenu() {
-    console.log('\n====================================');
-    console.log('   COMPUTER CENTER BOOKING SYSTEM   ');
-    console.log('====================================');
+    console.log(color('\n====================================', COLORS.cyan));
+    console.log(color('   COMPUTER CENTER BOOKING SYSTEM   ', COLORS.cyan + COLORS.bold));
+    console.log(color('====================================', COLORS.cyan));
     console.log('1. Student Registration');
     console.log('2. Student Login');
     console.log('3. Exit');
     
-    const choice = await rl.question('\nSelect an option (1-3): ');
+    const promptText = color('\nSelect an option (1-3): ', COLORS.yellow);
+    const choice = await rl.question(promptText);
     
     switch (choice.trim()) {
         case '1':
@@ -72,67 +81,66 @@ async function mainMenu() {
             await loginStudent();
             break;
         case '3':
-            console.log('Goodbye!');
+            console.log(color('\nGoodbye!', COLORS.cyan));
             rl.close();
             process.exit(0);
         default:
-            console.log('❌ Invalid option. Try again.');
+            console.log(color('❌ Invalid option. Try again.', COLORS.red));
             await mainMenu();
     }
 }
 
 async function registerStudent() {
-    console.log('\n--- Student Registration ---');
-    const surname = await rl.question('Enter your surname: ');
+    console.log(color('\n--- Student Registration ---', COLORS.cyan));
+    const promptText = color('Enter your surname: ', COLORS.yellow);
+    const surname = await rl.question(promptText);
     
     if (!surname.trim()) {
-        console.log('❌ Surname cannot be empty.');
+        console.log(color('❌ Surname cannot be empty.', COLORS.red));
         return mainMenu();
     }
     
-    // Fetch latest data from shared db.json
     const { students, bookings } = await loadData();
     
     try {
         const studentNumber = generateStudentId(surname, students);
         students.set(studentNumber, { surname, studentNumber });
-        
-        // Write instantly back to shared file
         await saveData(students, bookings);
         
-        console.log(`\n✅ Registration Successful!`);
-        console.log(`Your Unique Student Number is: ${studentNumber}`);
+        console.log(color(`\n✅ Registration Successful!`, COLORS.green));
+        console.log(`Your Unique Student Number is: ${color(studentNumber, COLORS.green + COLORS.bold)}`);
     } catch (error) {
-        console.log(`❌ Error: ${error.message}`);
+        console.log(color(`❌ Error: ${error.message}`, COLORS.red));
     }
     await mainMenu();
 }
 
 async function loginStudent() {
-    console.log('\n--- Student Login ---');
-    const studentNumber = (await rl.question('Enter your Student Number (e.g., sib1054): ')).trim().toLowerCase();
+    console.log(color('\n--- Student Login ---', COLORS.cyan));
+    const promptText = color('Enter your Student Number (e.g., sib1054): ', COLORS.yellow);
+    const studentNumber = (await rl.question(promptText)).trim().toLowerCase();
     
-    // Fetch latest data from shared db.json
     const { students } = await loadData();
     
     if (!students.has(studentNumber)) {
-        console.log('❌ Student Number not found. Please register first.');
+        console.log(color('❌ Student Number not found. Please register first.', COLORS.red));
         return mainMenu();
     }
     
     const student = students.get(studentNumber);
-    console.log(`\nWelcome back, ${student.surname}!`);
+    console.log(color(`\nWelcome back, ${student.surname}!`, COLORS.green));
     await studentDashboard(student);
 }
 
 async function studentDashboard(student) {
-    console.log(`\n--- Dashboard (${student.studentNumber}) ---`);
+    console.log(color(`\n--- Dashboard (${student.studentNumber}) ---`, COLORS.cyan));
     console.log('1. Book a PC Session');
     console.log('2. View My Bookings');
     console.log('3. Cancel a Booking');
     console.log('4. Logout');
     
-    const choice = await rl.question('\nSelect an option (1-4): ');
+    const promptText = color('\nSelect an option (1-4): ', COLORS.yellow);
+    const choice = await rl.question(promptText);
     
     switch (choice.trim()) {
         case '1':
@@ -146,75 +154,85 @@ async function studentDashboard(student) {
             await cancelBooking(student);
             break;
         case '4':
-            console.log('Logged out successfully.');
+            console.log(color('Logged out successfully.', COLORS.green));
             await mainMenu();
             break;
         default:
-            console.log('❌ Invalid option.');
+            console.log(color('❌ Invalid option.', COLORS.red));
             await studentDashboard(student);
     }
 }
 
 async function bookSession(student) {
-    console.log('\n--- Book a PC Session (8 Hours) ---');
+    console.log(color('\n--- Book a PC Session (8 Hours) ---', COLORS.cyan));
     
-    // Fetch fresh data from shared file right before booking logic runs
     const { students, bookings } = await loadData();
-    
     const studentBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
+    
     if (studentBookings.length >= 3) {
-        console.log('❌ Booking Limit Reached! You can only book up to 3 sessions per week (Mon-Fri).');
+        console.log(color('❌ Booking Limit Reached! You can only book up to 3 sessions per week (Mon-Fri).', COLORS.red));
         return studentDashboard(student);
     }
     
-    // Choose Day
-    console.log('Select a day:');
+    console.log(color('Select a day:', COLORS.cyan));
     DAYS.forEach((day, index) => {
         const studentHasBooking = studentBookings.some(b => b.day === day);
-        console.log(`${index + 1}. ${day} ${studentHasBooking ? '[Already Booked by You]' : ''}`);
+        const status = studentHasBooking ? color('[Already Booked by You]', COLORS.yellow) : '';
+        console.log(`${index + 1}. ${day} ${status}`);
     });
     
-    const dayChoice = parseInt(await rl.question('\nSelect Day (1-5): '), 10);
+    const dayPrompt = color('\nSelect Day (1-5): ', COLORS.yellow);
+    const dayChoice = parseInt(await rl.question(dayPrompt), 10);
+    
     if (isNaN(dayChoice) || dayChoice < 1 || dayChoice > 5) {
-        console.log('❌ Invalid day selection.');
+        console.log(color('❌ Invalid day selection.', COLORS.red));
         return studentDashboard(student);
     }
     
     const selectedDay = DAYS[dayChoice - 1];
     
     if (studentBookings.some(b => b.day === selectedDay)) {
-        console.log(`❌ You already have a booking on ${selectedDay}.`);
+        console.log(color(`❌ You already have a booking on ${selectedDay}.`, COLORS.red));
         return studentDashboard(student);
     }
     
-    // Check available PCs based on the latest saved file
     const dayBookings = bookings.filter(b => b.day === selectedDay);
     const occupiedPcs = dayBookings.map(b => b.pcNumber);
     
-    console.log(`\n--- PC Availability for ${selectedDay} ---`);
+    console.log(color(`\n--- PC Availability for ${selectedDay} ---`, COLORS.cyan));
+    console.log(`Key: ${color('[#]', COLORS.green)} = Available | ${color('[X] (Red)', COLORS.red)} = Occupied\n`);
+    
     let row = '';
     for (let i = 1; i <= TOTAL_PCS; i++) {
-        const status = occupiedPcs.includes(i) ? '[X]' : `[${i}]`;
-        row += status.padEnd(6);
+        let status;
+        if (occupiedPcs.includes(i)) {
+            // Unavailabe PC colored in bright RED
+            status = color('[X]', COLORS.red);
+        } else {
+            // Available PC colored in bright GREEN
+            status = color(`[${i}]`, COLORS.green);
+        }
+        
+        row += status.padEnd(15); // Increased padding to handle ANSI escape code length
         if (i % 10 === 0) {
             console.log(row);
             row = '';
         }
     }
     
-    const pcChoice = parseInt(await rl.question('\nEnter PC number to book: '), 10);
+    const pcPrompt = color('\nEnter PC number to book: ', COLORS.yellow);
+    const pcChoice = parseInt(await rl.question(pcPrompt), 10);
     
     if (isNaN(pcChoice) || pcChoice < 1 || pcChoice > TOTAL_PCS) {
-        console.log('❌ Invalid PC selection.');
+        console.log(color('❌ Invalid PC selection.', COLORS.red));
         return studentDashboard(student);
     }
     
     if (occupiedPcs.includes(pcChoice)) {
-        console.log(`❌ PC ${pcChoice} is already booked on ${selectedDay} by another student.`);
+        console.log(color(`❌ PC ${pcChoice} is already booked on ${selectedDay} by another student. Please pick an open green slot.`, COLORS.red));
         return studentDashboard(student);
     }
     
-    // Add booking and write to the shared JSON file
     bookings.push({
         studentNumber: student.studentNumber,
         pcNumber: pcChoice,
@@ -223,7 +241,7 @@ async function bookSession(student) {
     
     await saveData(students, bookings);
     
-    console.log(`\n✅ Booking Confirmed! PC ${pcChoice} is reserved for you on ${selectedDay}.`);
+    console.log(color(`\n✅ Booking Confirmed! PC ${pcChoice} is reserved for you on ${selectedDay}.`, COLORS.green));
     await studentDashboard(student);
 }
 
@@ -231,12 +249,12 @@ async function viewBookings(student) {
     const { bookings } = await loadData();
     const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
     
-    console.log('\n--- Your Bookings ---');
+    console.log(color('\n--- Your Bookings ---', COLORS.cyan));
     if (myBookings.length === 0) {
-        console.log('You have no active bookings.');
+        console.log(color('You have no active bookings.', COLORS.yellow));
     } else {
         myBookings.forEach((b, index) => {
-            console.log(`${index + 1}. ${b.day}: PC #${b.pcNumber} (8 Hours)`);
+            console.log(`${index + 1}. ${color(b.day, COLORS.cyan)}: PC #${color(b.pcNumber, COLORS.green)} (8 Hours)`);
         });
     }
 }
@@ -245,10 +263,10 @@ async function cancelBooking(student) {
     const { students, bookings } = await loadData();
     const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
     
-    console.log('\n--- Cancel a Booking ---');
+    console.log(color('\n--- Cancel a Booking ---', COLORS.cyan));
     
     if (myBookings.length === 0) {
-        console.log('You have no active bookings to cancel.');
+        console.log(color('You have no active bookings to cancel.', COLORS.yellow));
         return studentDashboard(student);
     }
     
@@ -256,12 +274,13 @@ async function cancelBooking(student) {
         console.log(`${index + 1}. ${b.day}: PC #${b.pcNumber}`);
     });
     
-    const choice = parseInt(await rl.question('\nSelect booking to cancel (or 0 to go back): '), 10);
+    const cancelPrompt = color('\nSelect booking to cancel (or 0 to go back): ', COLORS.yellow);
+    const choice = parseInt(await rl.question(cancelPrompt), 10);
     
     if (choice === 0) return studentDashboard(student);
     
     if (isNaN(choice) || choice < 1 || choice > myBookings.length) {
-        console.log('❌ Invalid choice.');
+        console.log(color('❌ Invalid choice.', COLORS.red));
         return studentDashboard(student);
     }
     
@@ -274,9 +293,8 @@ async function cancelBooking(student) {
     
     if (targetIndex !== -1) {
         bookings.splice(targetIndex, 1);
-        // Persist the changes back to db.json
         await saveData(students, bookings);
-        console.log(`\n✅ Successfully cancelled booking for PC #${targetBooking.pcNumber} on ${targetBooking.day}.`);
+        console.log(color(`\n✅ Successfully cancelled booking for PC #${targetBooking.pcNumber} on ${targetBooking.day}.`, COLORS.green));
     }
     
     await studentDashboard(student);
