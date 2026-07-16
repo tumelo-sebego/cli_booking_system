@@ -24,10 +24,16 @@ const color = (text, colorCode) => `${colorCode}${text}${COLORS.reset}`;
 
 // --- Navigation Helper ---
 let currentUser = null; // Track current user for navigation
+let historyStack = []; // Stack for navigation history
+
+async function pushHistory(fn, args) {
+    historyStack.push({ fn, args });
+}
 
 async function handleNav(input, fallbackFn) {
     const cmd = input.trim();
     if (cmd === '/home') {
+        historyStack = []; // Reset history on home
         if (currentUser) {
             await studentDashboard(currentUser);
         } else {
@@ -36,7 +42,13 @@ async function handleNav(input, fallbackFn) {
         return true;
     }
     if (cmd === '/back') {
-        await fallbackFn();
+        if (historyStack.length > 1) {
+            historyStack.pop(); // pop current
+            const last = historyStack[historyStack.length - 1];
+            await last.fn(...last.args);
+        } else {
+            await fallbackFn();
+        }
         return true;
     }
     return false;
@@ -83,6 +95,7 @@ function generateStudentId(surname, studentsMap) {
 
 // --- CLI Views & Navigation ---
 async function mainMenu() {
+    await pushHistory(mainMenu, []);
     console.log(color('\n====================================', COLORS.cyan));
     console.log(color('   COMPUTER CENTER BOOKING SYSTEM   ', COLORS.cyan + COLORS.bold));
     console.log(color('====================================', COLORS.cyan));
@@ -114,6 +127,7 @@ async function mainMenu() {
 }
 
 async function registerStudent() {
+    await pushHistory(registerStudent, []);
     console.log(color('\n--- Student Registration ---', COLORS.cyan));
     const promptText = color('Enter your surname: ', COLORS.yellow);
     const surname = await rl.question(promptText);
@@ -141,6 +155,7 @@ async function registerStudent() {
 }
 
 async function loginStudent() {
+    await pushHistory(loginStudent, []);
     console.log(color('\n--- Student Login ---', COLORS.cyan));
     const promptText = color('Enter your Student Number (e.g., sib1054): ', COLORS.yellow);
     const input = await rl.question(promptText);
@@ -169,6 +184,7 @@ async function loginStudent() {
 }
 
 async function studentDashboard(student) {
+    await pushHistory(studentDashboard, [student]);
     console.log(color(`\n--- Dashboard (${student.studentNumber}) ---`, COLORS.cyan));
     console.log('1. Book a PC Session');
     console.log('2. View My Bookings');
@@ -207,6 +223,11 @@ async function studentDashboard(student) {
 }
 
 async function bookSession(student) {
+    await bookSessionChooseDay(student);
+}
+
+async function bookSessionChooseDay(student) {
+    await pushHistory(bookSessionChooseDay, [student]);
     console.log(color('\n--- Book a PC Session (8 Hours) ---', COLORS.cyan));
     
     const { students, bookings } = await loadData();
@@ -232,16 +253,23 @@ async function bookSession(student) {
     
     if (isNaN(dayChoice) || dayChoice < 1 || dayChoice > 5) {
         console.log(color('❌ Invalid day selection.', COLORS.red));
-        return studentDashboard(student);
+        return bookSessionChooseDay(student);
     }
     
     const selectedDay = DAYS[dayChoice - 1];
     
     if (studentBookings.some(b => b.day === selectedDay)) {
         console.log(color(`❌ You already have a booking on ${selectedDay}.`, COLORS.red));
-        return studentDashboard(student);
+        return bookSessionChooseDay(student);
     }
     
+    await bookSessionChoosePC(student, selectedDay);
+}
+
+async function bookSessionChoosePC(student, selectedDay) {
+    await pushHistory(bookSessionChoosePC, [student, selectedDay]);
+    
+    const { students, bookings } = await loadData();
     const dayBookings = bookings.filter(b => b.day === selectedDay);
     const occupiedPcs = dayBookings.map(b => b.pcNumber);
     
@@ -252,14 +280,12 @@ async function bookSession(student) {
     for (let i = 1; i <= TOTAL_PCS; i++) {
         let status;
         if (occupiedPcs.includes(i)) {
-            // Unavailabe PC colored in bright RED
             status = color('[X]', COLORS.red);
         } else {
-            // Available PC colored in bright GREEN
             status = color(`[${i}]`, COLORS.green);
         }
         
-        row += status.padEnd(15); // Increased padding to handle ANSI escape code length
+        row += status.padEnd(15);
         if (i % 10 === 0) {
             console.log(row);
             row = '';
@@ -269,17 +295,17 @@ async function bookSession(student) {
     const pcPrompt = color('\nEnter PC number to book: ', COLORS.yellow);
     const pcInput = await rl.question(pcPrompt);
     
-    if (await handleNav(pcInput, () => studentDashboard(student))) return;
+    if (await handleNav(pcInput, () => bookSessionChooseDay(student))) return;
     const pcChoice = parseInt(pcInput, 10);
     
     if (isNaN(pcChoice) || pcChoice < 1 || pcChoice > TOTAL_PCS) {
         console.log(color('❌ Invalid PC selection.', COLORS.red));
-        return studentDashboard(student);
+        return bookSessionChoosePC(student, selectedDay);
     }
     
     if (occupiedPcs.includes(pcChoice)) {
         console.log(color(`❌ PC ${pcChoice} is already booked on ${selectedDay} by another student. Please pick an open green slot.`, COLORS.red));
-        return studentDashboard(student);
+        return bookSessionChoosePC(student, selectedDay);
     }
     
     bookings.push({
@@ -295,6 +321,7 @@ async function bookSession(student) {
 }
 
 async function viewBookings(student) {
+    await pushHistory(viewBookings, [student]);
     const { bookings } = await loadData();
     const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
     
@@ -309,6 +336,7 @@ async function viewBookings(student) {
 }
 
 async function cancelBooking(student) {
+    await pushHistory(cancelBooking, [student]);
     const { students, bookings } = await loadData();
     const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
     
