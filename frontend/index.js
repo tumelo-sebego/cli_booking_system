@@ -131,7 +131,7 @@ async function registerStudent() {
     await mainMenu();
 }
 
-inasync function loginStudent() {
+async function loginStudent() {
     console.log(color('\n--- Student Login ---', COLORS.cyan));
     const promptText = color('Enter your Student Number (e.g., sib1054): ', COLORS.yellow);
     const input = await rl.question(promptText);
