@@ -2,6 +2,7 @@ import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import { promises as fs } from 'fs';
 import path from 'path';
+import * as historyManager from './historyManager.js';
 
 const rl = readline.createInterface({ input, output });
 const DB_FILE = path.join(process.cwd(), 'db.json');
@@ -24,16 +25,15 @@ const color = (text, colorCode) => `${colorCode}${text}${COLORS.reset}`;
 
 // --- Navigation Helper ---
 let currentUser = null; // Track current user for navigation
-let historyStack = []; // Stack for navigation history
 
 async function pushHistory(fn, args) {
-    historyStack.push({ fn, args });
+    const userId = currentUser ? currentUser.studentNumber : 'anonymous';
+    await historyManager.logStep(userId, fn.name, args);
 }
 
 async function handleNav(input, fallbackFn) {
     const cmd = input.trim();
     if (cmd === '/home') {
-        historyStack = []; // Reset history on home
         if (currentUser) {
             await studentDashboard(currentUser);
         } else {
@@ -42,16 +42,32 @@ async function handleNav(input, fallbackFn) {
         return true;
     }
     if (cmd === '/back') {
-        if (historyStack.length > 1) {
-            historyStack.pop(); // pop current
-            const last = historyStack[historyStack.length - 1];
-            await last.fn(...last.args);
+        const userId = currentUser ? currentUser.studentNumber : 'anonymous';
+        const lastStep = await historyManager.popStep(userId);
+        if (lastStep) {
+            await executeStep(lastStep.name, lastStep.args);
         } else {
             await fallbackFn();
         }
         return true;
     }
     return false;
+}
+
+async function executeStep(name, args) {
+    const steps = {
+        mainMenu,
+        registerStudent,
+        loginStudent,
+        studentDashboard: (student) => studentDashboard(student),
+        bookSessionChooseDay: (student) => bookSessionChooseDay(student),
+        bookSessionChoosePC: (student, day) => bookSessionChoosePC(student, day),
+        viewBookings,
+        cancelBooking
+    };
+    if (steps[name]) {
+        await steps[name](...args);
+    }
 }
 
 // --- Database Helper Functions ---
