@@ -151,4 +151,4 @@ app.post('/api/cancel', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`Server running on port $
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
