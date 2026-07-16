@@ -1,39 +1,56 @@
 import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const rl = readline.createInterface({ input, output });
+const DB_FILE = path.join(process.cwd(), 'db.json');
 
-// --- Mock Database ---
-const students = new Map(); // Key: studentNumber, Value: { surname, studentNumber }
-const bookings = [];        // Array of { studentNumber, pcNumber, day }
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const TOTAL_PCS = 50;
 
-// --- Helper Functions ---
-function generateStudentId(surname) {
+// --- Database Helper Functions ---
+
+// 1. Read state from the shared JSON file
+async function loadData() {
+    try {
+        const data = await fs.readFile(DB_FILE, 'utf8');
+        const parsed = JSON.parse(data);
+        // Convert the parsed students object back to a Map
+        return {
+            students: new Map(Object.entries(parsed.students || {})),
+            bookings: parsed.bookings || []
+        };
+    } catch (error) {
+        // If file doesn't exist, return empty initial state
+        return { students: new Map(), bookings: [] };
+    }
+}
+
+// 2. Save state back to the shared JSON file
+async function saveData(studentsMap, bookingsArray) {
+    const dataToSave = {
+        students: Object.fromEntries(studentsMap), // Convert Map to plain object for JSON
+        bookings: bookingsArray
+    };
+    await fs.writeFile(DB_FILE, JSON.stringify(dataToSave, null, 2), 'utf8');
+}
+
+// --- Logic Helper Functions ---
+function generateStudentId(surname, studentsMap) {
     const prefix = surname.slice(0, 3).toLowerCase().padEnd(3, 'x');
     let uniqueId = '';
     let attempts = 0;
     
     while (attempts < 1000) {
-        const randomDigits = Math.floor(1000 + Math.random() * 9000).toString(); // 4 digits
+        const randomDigits = Math.floor(1000 + Math.random() * 9000).toString();
         uniqueId = `${prefix}${randomDigits}`;
-        if (!students.has(uniqueId)) {
+        if (!studentsMap.has(uniqueId)) {
             return uniqueId;
         }
         attempts++;
     }
-    throw new Error("Could not generate a unique Student ID. Database full.");
-}
-
-// Get bookings for a specific day
-function getBookingsByDay(day) {
-    return bookings.filter(b => b.day === day);
-}
-
-// Get bookings for a specific student
-function getBookingsByStudent(studentNumber) {
-    return bookings.filter(b => b.studentNumber === studentNumber);
+    throw new Error("Could not generate a unique Student ID.");
 }
 
 // --- CLI Views & Navigation ---
@@ -73,9 +90,16 @@ async function registerStudent() {
         return mainMenu();
     }
     
+    // Fetch latest data from shared db.json
+    const { students, bookings } = await loadData();
+    
     try {
-        const studentNumber = generateStudentId(surname);
+        const studentNumber = generateStudentId(surname, students);
         students.set(studentNumber, { surname, studentNumber });
+        
+        // Write instantly back to shared file
+        await saveData(students, bookings);
+        
         console.log(`\n✅ Registration Successful!`);
         console.log(`Your Unique Student Number is: ${studentNumber}`);
     } catch (error) {
@@ -87,6 +111,9 @@ async function registerStudent() {
 async function loginStudent() {
     console.log('\n--- Student Login ---');
     const studentNumber = (await rl.question('Enter your Student Number (e.g., sib1054): ')).trim().toLowerCase();
+    
+    // Fetch latest data from shared db.json
+    const { students } = await loadData();
     
     if (!students.has(studentNumber)) {
         console.log('❌ Student Number not found. Please register first.');
@@ -112,7 +139,7 @@ async function studentDashboard(student) {
             await bookSession(student);
             break;
         case '2':
-            viewBookings(student);
+            await viewBookings(student);
             await studentDashboard(student);
             break;
         case '3':
@@ -131,8 +158,10 @@ async function studentDashboard(student) {
 async function bookSession(student) {
     console.log('\n--- Book a PC Session (8 Hours) ---');
     
-    // Rule 1: Max 3 bookings per week
-    const studentBookings = getBookingsByStudent(student.studentNumber);
+    // Fetch fresh data from shared file right before booking logic runs
+    const { students, bookings } = await loadData();
+    
+    const studentBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
     if (studentBookings.length >= 3) {
         console.log('❌ Booking Limit Reached! You can only book up to 3 sessions per week (Mon-Fri).');
         return studentDashboard(student);
@@ -153,14 +182,13 @@ async function bookSession(student) {
     
     const selectedDay = DAYS[dayChoice - 1];
     
-    // Rule 2: Max 1 booking per day for the student
     if (studentBookings.some(b => b.day === selectedDay)) {
         console.log(`❌ You already have a booking on ${selectedDay}.`);
         return studentDashboard(student);
     }
     
-    // Show PC Availability for that day
-    const dayBookings = getBookingsByDay(selectedDay);
+    // Check available PCs based on the latest saved file
+    const dayBookings = bookings.filter(b => b.day === selectedDay);
     const occupiedPcs = dayBookings.map(b => b.pcNumber);
     
     console.log(`\n--- PC Availability for ${selectedDay} ---`);
@@ -181,25 +209,28 @@ async function bookSession(student) {
         return studentDashboard(student);
     }
     
-    // Rule 3: Ensure PC is free
     if (occupiedPcs.includes(pcChoice)) {
         console.log(`❌ PC ${pcChoice} is already booked on ${selectedDay} by another student.`);
         return studentDashboard(student);
     }
     
-    // Confirm booking
+    // Add booking and write to the shared JSON file
     bookings.push({
         studentNumber: student.studentNumber,
         pcNumber: pcChoice,
         day: selectedDay
     });
     
-    console.log(`\n✅ Booking Confirmed! PC ${pcChoice} is reserved for you on ${selectedDay} (8-hour session).`);
+    await saveData(students, bookings);
+    
+    console.log(`\n✅ Booking Confirmed! PC ${pcChoice} is reserved for you on ${selectedDay}.`);
     await studentDashboard(student);
 }
 
-function viewBookings(student) {
-    const myBookings = getBookingsByStudent(student.studentNumber);
+async function viewBookings(student) {
+    const { bookings } = await loadData();
+    const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
+    
     console.log('\n--- Your Bookings ---');
     if (myBookings.length === 0) {
         console.log('You have no active bookings.');
@@ -211,7 +242,9 @@ function viewBookings(student) {
 }
 
 async function cancelBooking(student) {
-    const myBookings = getBookingsByStudent(student.studentNumber);
+    const { students, bookings } = await loadData();
+    const myBookings = bookings.filter(b => b.studentNumber === student.studentNumber);
+    
     console.log('\n--- Cancel a Booking ---');
     
     if (myBookings.length === 0) {
@@ -241,6 +274,8 @@ async function cancelBooking(student) {
     
     if (targetIndex !== -1) {
         bookings.splice(targetIndex, 1);
+        // Persist the changes back to db.json
+        await saveData(students, bookings);
         console.log(`\n✅ Successfully cancelled booking for PC #${targetBooking.pcNumber} on ${targetBooking.day}.`);
     }
     
