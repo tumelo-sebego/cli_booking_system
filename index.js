@@ -134,6 +134,7 @@ async function mainMenu() {
             break;
         case '3':
             console.log(color('\nGoodbye!', COLORS.cyan));
+            await historyManager.endSession('anonymous');
             rl.close();
             process.exit(0);
         default:
@@ -331,7 +332,8 @@ async function bookSessionChoosePC(student, selectedDay) {
     bookings.push({
         studentNumber: student.studentNumber,
         pcNumber: pcChoice,
-        day: selectedDay
+        day: selectedDay,
+        createdAt: new Date().toISOString()
     });
     
     await saveData(students, bookings);
@@ -399,6 +401,9 @@ async function cancelBooking(student) {
     
     await studentDashboard(student);
 }
+
+// Start anonymous session
+historyManager.startSession('anonymous');
 
 // Start the Application
 mainMenu();

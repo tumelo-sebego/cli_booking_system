@@ -1,0 +1,191 @@
+{
+  "anonymous": [
+    {
+      "startTime": "2026-07-16T12:33:57.819Z",
+      "steps": [
+        {
+          "name": "mainMenu",
+          "args": [],
+          "timestamp": "2026-07-16T12:33:57.820Z"
+        },
+        {
+          "name": "registerStudent",
+          "args": [
+            "mofokeng"
+          ],
+          "timestamp": "2026-07-16T12:35:46.496Z"
+        },
+        {
+          "name": "mainMenu",
+          "args": [],
+          "timestamp": "2026-07-16T12:37:24.116Z"
+        },
+        {
+          "name": "loginStudent",
+          "args": [
+            "ndl9253"
+          ],
+          "timestamp": "2026-07-16T12:38:00.992Z"
+        }
+      ]
+    }
+  ],
+  "mof8818": [
+    {
+      "startTime": "2026-07-16T12:36:23.515Z",
+      "steps": [
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "mofokeng",
+              "studentNumber": "mof8818",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:36:23.517Z"
+        }
+      ]
+    }
+  ],
+  "ndl9253": [
+    {
+      "startTime": "2026-07-16T12:38:00.995Z",
+      "steps": [
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:38:00.997Z"
+        },
+        {
+          "name": "viewBookings",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:39:05.458Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:39:05.461Z"
+        },
+        {
+          "name": "bookSessionChooseDay",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:39:44.459Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:39:44.462Z"
+        },
+        {
+          "name": "cancelBooking",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:40:18.874Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:40:24.082Z"
+        },
+        {
+          "name": "viewBookings",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:40:29.645Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:40:29.646Z"
+        },
+        {
+          "name": "bookSessionChooseDay",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:41:09.477Z"
+        },
+        {
+          "name": "bookSessionChoosePC",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            },
+            "Tuesday"
+          ],
+          "timestamp": "2026-07-16T12:41:16.657Z"
+        },
+        {
+          "name": "studentDashboard",
+          "args": [
+            {
+              "surname": "ndlebe",
+              "studentNumber": "ndl9253",
+              "active": true
+            }
+          ],
+          "timestamp": "2026-07-16T12:41:21.094Z"
+        }
+      ]
+    }
+  ]
+}
