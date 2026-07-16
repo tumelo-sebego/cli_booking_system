@@ -194,6 +194,7 @@ async function loginStudent() {
     student.active = true;
     await saveData(students, bookings);
     
+    await historyManager.startSession(student.studentNumber);
     currentUser = student; // Set current user
     console.log(color(`\nWelcome back, ${student.surname}!`, COLORS.green));
     await studentDashboard(student);
@@ -228,6 +229,7 @@ async function studentDashboard(student) {
             const { students, bookings } = await loadData();
             students.get(student.studentNumber).active = false;
             await saveData(students, bookings);
+            await historyManager.endSession(student.studentNumber);
             currentUser = null; // Clear current user
             console.log(color('Logged out successfully.', COLORS.green));
             await mainMenu();

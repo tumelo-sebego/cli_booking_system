@@ -16,28 +16,42 @@ async function saveHistoryData(data) {
     await fs.writeFile(HISTORY_FILE, JSON.stringify(data, null, 2), 'utf8');
 }
 
+export async function startSession(userId) {
+    const data = await getHistoryData();
+    if (!data[userId]) data[userId] = [];
+    
+    // End any existing dangling sessions just in case
+    data[userId].forEach(s => { if (!s.endTime) s.endTime = new Date().toISOString(); });
+    
+    data[userId].push({ startTime: new Date().toISOString(), steps: [] });
+    await saveHistoryData(data);
+}
+
+export async function endSession(userId) {
+    const data = await getHistoryData();
+    if (data[userId]) {
+        const session = data[userId].find(s => !s.endTime);
+        if (session) {
+            session.endTime = new Date().toISOString();
+            await saveHistoryData(data);
+        }
+    }
+}
+
 export async function logStep(userId, stepName, args) {
     const data = await getHistoryData();
-    const sessionId = new Date().toISOString();
     
-    if (!data[userId]) {
-        data[userId] = [];
+    if (userId !== 'anonymous') {
+        const session = data[userId]?.find(s => !s.endTime);
+        if (session) {
+            session.steps.push({
+                name: stepName,
+                args,
+                timestamp: new Date().toISOString()
+            });
+            await saveHistoryData(data);
+        }
     }
-
-    // Find or create current session
-    let session = data[userId].find(s => !s.endTime);
-    if (!session) {
-        session = { startTime: sessionId, steps: [] };
-        data[userId].push(session);
-    }
-
-    session.steps.push({
-        name: stepName,
-        args,
-        timestamp: sessionId
-    });
-
-    await saveHistoryData(data);
 }
 
 export async function popStep(userId) {
