@@ -22,6 +22,26 @@ const COLORS = {
 // Helper function to colorize text
 const color = (text, colorCode) => `${colorCode}${text}${COLORS.reset}`;
 
+// --- Navigation Helper ---
+let currentUser = null; // Track current user for navigation
+
+async function handleNav(input, fallbackFn) {
+    const cmd = input.trim();
+    if (cmd === '/home') {
+        if (currentUser) {
+            await studentDashboard(currentUser);
+        } else {
+            await mainMenu();
+        }
+        return true;
+    }
+    if (cmd === '/back') {
+        await fallbackFn();
+        return true;
+    }
+    return false;
+}
+
 // --- Database Helper Functions ---
 async function loadData() {
     try {
@@ -71,7 +91,10 @@ async function mainMenu() {
     console.log('3. Exit');
     
     const promptText = color('\nSelect an option (1-3): ', COLORS.yellow);
-    const choice = await rl.question(promptText);
+    const input = await rl.question(promptText);
+    
+    if (await handleNav(input, mainMenu)) return;
+    const choice = input;
     
     switch (choice.trim()) {
         case '1':
@@ -94,6 +117,8 @@ async function registerStudent() {
     console.log(color('\n--- Student Registration ---', COLORS.cyan));
     const promptText = color('Enter your surname: ', COLORS.yellow);
     const surname = await rl.question(promptText);
+    
+    if (await handleNav(surname, mainMenu)) return;
     
     if (!surname.trim()) {
         console.log(color('❌ Surname cannot be empty.', COLORS.red));
@@ -118,7 +143,10 @@ async function registerStudent() {
 async function loginStudent() {
     console.log(color('\n--- Student Login ---', COLORS.cyan));
     const promptText = color('Enter your Student Number (e.g., sib1054): ', COLORS.yellow);
-    const studentNumber = (await rl.question(promptText)).trim().toLowerCase();
+    const input = await rl.question(promptText);
+    
+    if (await handleNav(input, mainMenu)) return;
+    const studentNumber = input.trim().toLowerCase();
     
     const { students, bookings } = await loadData();
     
@@ -135,6 +163,7 @@ async function loginStudent() {
     student.active = true;
     await saveData(students, bookings);
     
+    currentUser = student; // Set current user
     console.log(color(`\nWelcome back, ${student.surname}!`, COLORS.green));
     await studentDashboard(student);
 }
@@ -147,7 +176,10 @@ async function studentDashboard(student) {
     console.log('4. Logout');
     
     const promptText = color('\nSelect an option (1-4): ', COLORS.yellow);
-    const choice = await rl.question(promptText);
+    const input = await rl.question(promptText);
+    
+    if (await handleNav(input, mainMenu)) return;
+    const choice = input;
     
     switch (choice.trim()) {
         case '1':
@@ -164,6 +196,7 @@ async function studentDashboard(student) {
             const { students, bookings } = await loadData();
             students.get(student.studentNumber).active = false;
             await saveData(students, bookings);
+            currentUser = null; // Clear current user
             console.log(color('Logged out successfully.', COLORS.green));
             await mainMenu();
             break;
@@ -192,7 +225,10 @@ async function bookSession(student) {
     });
     
     const dayPrompt = color('\nSelect Day (1-5): ', COLORS.yellow);
-    const dayChoice = parseInt(await rl.question(dayPrompt), 10);
+    const dayInput = await rl.question(dayPrompt);
+    
+    if (await handleNav(dayInput, () => studentDashboard(student))) return;
+    const dayChoice = parseInt(dayInput, 10);
     
     if (isNaN(dayChoice) || dayChoice < 1 || dayChoice > 5) {
         console.log(color('❌ Invalid day selection.', COLORS.red));
@@ -231,7 +267,10 @@ async function bookSession(student) {
     }
     
     const pcPrompt = color('\nEnter PC number to book: ', COLORS.yellow);
-    const pcChoice = parseInt(await rl.question(pcPrompt), 10);
+    const pcInput = await rl.question(pcPrompt);
+    
+    if (await handleNav(pcInput, () => studentDashboard(student))) return;
+    const pcChoice = parseInt(pcInput, 10);
     
     if (isNaN(pcChoice) || pcChoice < 1 || pcChoice > TOTAL_PCS) {
         console.log(color('❌ Invalid PC selection.', COLORS.red));
@@ -285,7 +324,10 @@ async function cancelBooking(student) {
     });
     
     const cancelPrompt = color('\nSelect booking to cancel (or 0 to go back): ', COLORS.yellow);
-    const choice = parseInt(await rl.question(cancelPrompt), 10);
+    const cancelInput = await rl.question(cancelPrompt);
+    
+    if (await handleNav(cancelInput, () => studentDashboard(student))) return;
+    const choice = parseInt(cancelInput, 10);
     
     if (choice === 0) return studentDashboard(student);
     
