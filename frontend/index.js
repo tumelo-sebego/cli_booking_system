@@ -72,7 +72,18 @@ async function executeStep(name, args) {
 }
 
 // --- Logic Helper Functions ---
-// (Logic moved to backend)
+async function logoutStudent(student) {
+    await pushHistory(logoutStudent, [student]);
+    try {
+        await apiClient.post('/logout', { studentNumber: student.studentNumber });
+        await historyManager.endSession(student.studentNumber);
+        currentUser = null; // Clear current user
+        console.log(color('Logged out successfully.', COLORS.green));
+    } catch (error) {
+        console.log(color(`❌ Error logging out: ${error.response?.data?.error || error.message}`, COLORS.red));
+    }
+    await mainMenu();
+}
 
 // --- CLI Views & Navigation ---
 async function mainMenu() {
@@ -180,15 +191,7 @@ async function studentDashboard(student) {
             await cancelBooking(student);
             break;
         case '4':
-            try {
-                await apiClient.post('/logout', { studentNumber: student.studentNumber });
-                await historyManager.endSession(student.studentNumber);
-                currentUser = null; // Clear current user
-                console.log(color('Logged out successfully.', COLORS.green));
-            } catch (error) {
-                console.log(color(`❌ Error logging out: ${error.response?.data?.error || error.message}`, COLORS.red));
-            }
-            await mainMenu();
+            await logoutStudent(student);
             break;
         default:
             console.log(color('❌ Invalid option.', COLORS.red));
