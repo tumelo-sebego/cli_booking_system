@@ -2,6 +2,7 @@ import axios from 'axios';
 import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import * as historyManager from './historyManager.js';
+import path from 'path';
 
 const rl = readline.createInterface({ input, output });
 const API_BASE = 'http://localhost:3000/api';
