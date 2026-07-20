@@ -180,9 +180,14 @@ async function studentDashboard(student) {
             await cancelBooking(student);
             break;
         case '4':
-            await historyManager.endSession(student.studentNumber);
-            currentUser = null; // Clear current user
-            console.log(color('Logged out successfully.', COLORS.green));
+            try {
+                await apiClient.post('/logout', { studentNumber: student.studentNumber });
+                await historyManager.endSession(student.studentNumber);
+                currentUser = null; // Clear current user
+                console.log(color('Logged out successfully.', COLORS.green));
+            } catch (error) {
+                console.log(color(`❌ Error logging out: ${error.response?.data?.error || error.message}`, COLORS.red));
+            }
             await mainMenu();
             break;
         default:
