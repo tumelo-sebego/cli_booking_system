@@ -11,6 +11,19 @@ const TOTAL_PCS = 50;
 
 app.use(express.json());
 
+// --- Request Logging Middleware ---
+app.use((req, res, next) => {
+    const clientIp = req.ip || req.connection.remoteAddress;
+    console.log(`${req.method} - ${clientIp} - ${JSON.stringify(req.body)}`);
+
+    const originalJson = res.json;
+    res.json = function(body) {
+        console.log(`Server response: ${JSON.stringify(body)}`);
+        return originalJson.call(this, body);
+    };
+    next();
+});
+
 // --- MongoDB Connection ---
 // Explicitly load the .env file from the backend folder
 dotenv.config({ path: 'backend/.env' });
