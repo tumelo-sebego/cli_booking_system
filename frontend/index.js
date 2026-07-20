@@ -37,6 +37,9 @@ init().then(url => {
     apiClient.defaults.baseURL = url + '/api';
     mainMenu(); // Start the app
 });
+
+// --- ANSI Color Codes ---
+const COLORS = {
     reset: '\x1b[0m',
     cyan: '\x1b[36m',
     green: '\x1b[32m',
