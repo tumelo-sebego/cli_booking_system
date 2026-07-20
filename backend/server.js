@@ -19,7 +19,8 @@ mongoose.connect(process.env.MONGODB_URI)
 // --- Mongoose Schemas & Models ---
 const studentSchema = new mongoose.Schema({
     surname: { type: String, required: true },
-    studentNumber: { type: String, required: true, unique: true }
+    studentNumber: { type: String, required: true, unique: true },
+    isLoggedIn: { type: Boolean, default: false }
 });
 
 const bookingSchema = new mongoose.Schema({
@@ -80,7 +81,32 @@ app.post('/api/login', async (req, res) => {
         if (!student) {
             return res.status(404).json({ error: 'Student Number not found.' });
         }
+        if (student.isLoggedIn) {
+            return res.status(403).json({ error: 'Student is already logged in elsewhere.' });
+        }
+        
+        student.isLoggedIn = true;
+        await student.save();
         res.json(student);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2.5 Student Logout
+app.post('/api/logout', async (req, res) => {
+    const { studentNumber } = req.body;
+    const cleanId = (studentNumber || '').trim().toLowerCase();
+
+    try {
+        const student = await Student.findOne({ studentNumber: cleanId });
+        if (!student) {
+            return res.status(404).json({ error: 'Student Number not found.' });
+        }
+        
+        student.isLoggedIn = false;
+        await student.save();
+        res.json({ message: 'Logged out successfully.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
