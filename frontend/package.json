@@ -1,8 +1,11 @@
 {
-  "name": "booking-system-frontend",
+  "name": "booking-system",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
+  "bin": {
+    "booking-system": "index.js"
+  },
   "dependencies": {
     "axios": "^1.18.1"
   }

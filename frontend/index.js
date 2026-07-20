@@ -1,17 +1,42 @@
+#!/usr/bin/env node
 import axios from 'axios';
 import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import * as historyManager from './historyManager.js';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
+
+// Load or set API Base
+const CONFIG_PATH = path.join(os.homedir(), '.booking-system.json');
+let API_BASE = process.env.BOOKING_SYSTEM_API_URL;
+
+async function getApiBase() {
+    if (API_BASE) return API_BASE;
+    if (fs.existsSync(CONFIG_PATH)) {
+        return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')).apiUrl;
+    }
+    return null;
+}
+
+// ... rest of the code
 
 const rl = readline.createInterface({ input, output });
-const API_BASE = 'http://localhost:3000/api';
 
-// --- API Client ---
-const apiClient = axios.create({ baseURL: API_BASE });
+async function init() {
+    let baseUrl = await getApiBase();
+    if (!baseUrl) {
+        baseUrl = await rl.question('Enter the Backend API URL (e.g., https://your-render-app.onrender.com/api): ');
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify({ apiUrl: baseUrl.replace(/\/api$/, '') }));
+    }
+    return baseUrl;
+}
 
-// --- ANSI Color Codes ---
-const COLORS = {
+const apiClient = axios.create(); // baseURL will be set dynamically
+init().then(url => {
+    apiClient.defaults.baseURL = url + '/api';
+    mainMenu(); // Start the app
+});
     reset: '\x1b[0m',
     cyan: '\x1b[36m',
     green: '\x1b[32m',
