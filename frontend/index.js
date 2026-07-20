@@ -93,9 +93,10 @@ async function mainMenu() {
     console.log(color('====================================', COLORS.cyan));
     console.log('1. Student Registration');
     console.log('2. Student Login');
-    console.log('3. Exit');
+    console.log('3. Admin Login/Register');
+    console.log('4. Exit');
     
-    const promptText = color('\nSelect an option (1-3): ', COLORS.yellow);
+    const promptText = color('\nSelect an option (1-4): ', COLORS.yellow);
     const input = await rl.question(promptText);
     
     if (await handleNav(input, mainMenu)) return;
@@ -109,6 +110,9 @@ async function mainMenu() {
             await loginStudent();
             break;
         case '3':
+            await adminMenu();
+            break;
+        case '4':
             console.log(color('\nGoodbye!', COLORS.cyan));
             await historyManager.endSession('anonymous');
             rl.close();
@@ -117,6 +121,54 @@ async function mainMenu() {
             console.log(color('❌ Invalid option. Try again.', COLORS.red));
             await mainMenu();
     }
+}
+
+async function adminMenu() {
+    console.log(color('\n--- Admin Access ---', COLORS.cyan));
+    console.log('1. Register Admin');
+    console.log('2. Login Admin');
+    console.log('3. Back');
+    
+    const input = await rl.question(color('Select option: ', COLORS.yellow));
+    if (input === '1') {
+        const name = await rl.question(color('Enter Admin Name: ', COLORS.yellow));
+        try {
+            const { data } = await apiClient.post('/admin/register', { adminName: name });
+            console.log(color(`✅ Admin Registered. Number: ${data.adminNumber}`, COLORS.green));
+        } catch(e) { console.log(color('❌ Error: ' + e.message, COLORS.red)); }
+        adminMenu();
+    } else if (input === '2') {
+        const num = await rl.question(color('Enter Admin Number: ', COLORS.yellow));
+        try {
+            const { data } = await apiClient.post('/admin/login', { adminNumber: num });
+            await adminDashboard(data);
+        } catch(e) { console.log(color('❌ Login failed: ' + e.message, COLORS.red)); adminMenu(); }
+    } else {
+        mainMenu();
+    }
+}
+
+async function adminDashboard(admin) {
+    console.log(color(`\n--- Admin Dashboard (${admin.adminName}) ---`, COLORS.cyan));
+    try {
+        const { data } = await apiClient.get('/admin/dashboard');
+        console.log(`Logged in students: ${data.loggedInStudents.length}`);
+        console.log(`Total bookings: ${data.totalBookings}`);
+        console.log(color('\nManage Bookings:', COLORS.yellow));
+        data.bookings.forEach((b, i) => console.log(`${i+1}. Student: ${b.studentNumber} | Day: ${b.day} | PC: ${b.pcNumber}`));
+        
+        const choice = await rl.question(color('\nEnter booking number to cancel (or L to logout): ', COLORS.yellow));
+        if (choice.toLowerCase() === 'l') {
+            await apiClient.post('/admin/logout', { adminNumber: admin.adminNumber });
+            return mainMenu();
+        }
+        const bIdx = parseInt(choice) - 1;
+        if (data.bookings[bIdx]) {
+            await apiClient.post('/admin/cancel', { bookingId: data.bookings[bIdx]._id });
+            console.log(color('✅ Cancelled.', COLORS.green));
+        }
+    } catch(e) { console.log(color('❌ Error: ' + e.message, COLORS.red)); }
+    adminDashboard(admin);
 }
 
 async function registerStudent() {

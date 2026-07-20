@@ -31,10 +31,109 @@ const bookingSchema = new mongoose.Schema({
     pcNumber: { type: Number, required: true }
 });
 
+const adminSchema = new mongoose.Schema({
+    adminName: { type: String, required: true },
+    adminNumber: { type: String, required: true, unique: true },
+    isLoggedIn: { type: Boolean, default: false }
+});
+
 const Student = mongoose.model('Student', studentSchema);
 const Booking = mongoose.model('Booking', bookingSchema);
+const Admin = mongoose.model('Admin', adminSchema);
 
-// --- API Endpoints ---
+// --- Admin Endpoints ---
+
+// 1. Admin Registration
+app.post('/api/admin/register', async (req, res) => {
+    const { adminName } = req.body;
+    if (!adminName || !adminName.trim()) {
+        return res.status(400).json({ error: 'Admin name is required' });
+    }
+
+    try {
+        const prefix = 'a-' + adminName.slice(0, 3).toLowerCase();
+        const randomDigits = Math.floor(1000 + Math.random() * 9000).toString();
+        const adminNumber = `${prefix}${randomDigits}`;
+
+        const newAdmin = new Admin({ adminName, adminNumber });
+        await newAdmin.save();
+
+        res.json({ adminNumber, adminName });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 2. Admin Login
+app.post('/api/admin/login', async (req, res) => {
+    const { adminNumber } = req.body;
+    const cleanId = (adminNumber || '').trim().toLowerCase();
+
+    try {
+        const admin = await Admin.findOne({ adminNumber: cleanId });
+        if (!admin) {
+            return res.status(404).json({ error: 'Admin Number not found.' });
+        }
+        if (admin.isLoggedIn) {
+            return res.status(403).json({ error: 'Admin is already logged in elsewhere.' });
+        }
+        
+        admin.isLoggedIn = true;
+        await admin.save();
+        res.json(admin);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. Admin Logout
+app.post('/api/admin/logout', async (req, res) => {
+    const { adminNumber } = req.body;
+    const cleanId = (adminNumber || '').trim().toLowerCase();
+
+    try {
+        const admin = await Admin.findOne({ adminNumber: cleanId });
+        if (!admin) {
+            return res.status(404).json({ error: 'Admin Number not found.' });
+        }
+        
+        admin.isLoggedIn = false;
+        await admin.save();
+        res.json({ message: 'Admin logged out successfully.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. Admin Dashboard Data
+app.get('/api/admin/dashboard', async (req, res) => {
+    try {
+        const loggedInStudents = await Student.find({ isLoggedIn: true });
+        const allBookings = await Booking.find({});
+        // Assuming we need to track today's logins - since we don't have a login log,
+        // we can filter students who have an active session or similar if we added a lastLogin field.
+        // For now, returning logged in students + total bookings.
+        res.json({
+            loggedInStudents,
+            totalBookings: allBookings.length,
+            bookings: allBookings
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 5. Admin Cancel Booking
+app.post('/api/admin/cancel', async (req, res) => {
+    const { bookingId } = req.body;
+    try {
+        const result = await Booking.findByIdAndDelete(bookingId);
+        if (!result) return res.status(404).json({ error: 'Booking not found.' });
+        res.json({ message: 'Booking cancelled by admin.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // 1. Student Registration
 app.post('/api/register', async (req, res) => {
