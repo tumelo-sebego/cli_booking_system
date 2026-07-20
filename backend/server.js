@@ -12,8 +12,10 @@ const TOTAL_PCS = 50;
 app.use(express.json());
 
 // --- MongoDB Connection ---
+// Explicitly load the .env file from the backend folder
+dotenv.config({ path: 'backend/.env' });
+
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB Atlas'))
     .catch(err => console.error('MongoDB connection error:', err));
 
 // --- Mongoose Schemas & Models ---
